@@ -10,18 +10,14 @@ use lazy_static::lazy_static;
 #[derive(Parser)]
 #[command(version, author, about, long_about)]
 struct Cli {
-    // The path to the mdx file
+    /// The path to the mdx file
     mdx_path: String,
 
-    // The path to the output file(.db), defaults to <mdx_path>.db
+    /// The path to the output file(.db), defaults to <mdx_path>.db
     output_path: Option<String>,
 
     #[arg(short, long)]
     remove_img_a: bool,
-
-    // Specify your age optionally
-    #[arg(short, long)]
-    age: Option<i8>,
 }
 
 lazy_static! {
