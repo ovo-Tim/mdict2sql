@@ -16,13 +16,16 @@ struct Cli {
     // The path to the output file(.db), defaults to <mdx_path>.db
     output_path: Option<String>,
 
-    /// Specify your age optionally
+    #[arg(short, long)]
+    remove_img_a: bool,
+
+    // Specify your age optionally
     #[arg(short, long)]
     age: Option<i8>,
 }
 
 lazy_static! {
-    static ref CLEARN_HTML:Regex = Regex::new(r"<img\b[^>]*>|</img>|<a\b[^>]*>|</a>").unwrap();
+    static ref CLEAN_HTML:Regex = Regex::new(r"<img\b[^>]*>|</img>|<a\b[^>]*>|</a>").unwrap();
 }
 
 fn read_file(path: &str) -> io::Result<Vec<u8>> {
@@ -49,21 +52,13 @@ fn create_db(path: PathBuf) -> Result<Connection, Box<dyn Error + 'static>>{
     }
     Ok(db)
 }
-fn insert_to_db(ins_cmd: &mut Statement, word: &str,source_html: &str) -> Result<(), rusqlite::Error> {
-    let processed_html = (*CLEARN_HTML).replace_all(source_html.trim(), "").to_string() // Remove <img> <a> tags
-                                .replace("'", "\"").replace("\"", r#"\""#);
-    let res = ins_cmd.execute((word, &processed_html));
-    if let Err(e) = res {
-        debug!("Err data:", processed_html);
-        return Err(e);
+fn insert_to_db(ins_cmd: &mut Statement, word: &str, source_html: &str, clean: bool) -> Result<(), rusqlite::Error> {
+    let mut processed_html = source_html.replace("'", "\"").replace("\"", r#"\""#);
+    if clean {
+        processed_html = (*CLEAN_HTML).replace_all(processed_html.trim(), "").to_string(); // Remove <img> <a> tags
     }
-    Ok(())
-}
 
-fn _insert_to_db(db: &Connection, word: &str,source_html: &str) -> Result<(), rusqlite::Error> {
-    let processed_html = (*CLEARN_HTML).replace_all(source_html.trim(), "").to_string() // Remove <img> <a> tags
-                                .replace("'", "\"").replace("\"", r#"\""#);
-    let res = db.execute("INSERT INTO stardict (word, source_html) values (?1, ?2)", (word, &processed_html));
+    let res = ins_cmd.execute((word, &processed_html));
     if let Err(e) = res {
         debug!("Err data:", processed_html);
         return Err(e);
@@ -96,13 +91,11 @@ fn main() -> Result<(), Box<dyn Error + 'static>> {
     let start_time = std::time::Instant::now();
     let mut ins_cmd = trans.prepare("INSERT INTO stardict (word, source_html) values (?1, ?2)").unwrap();
     for (i, record) in mdx_dict.items().enumerate() {
-        let res = insert_to_db(&mut ins_cmd, record.key, record.definition.as_str());
-        // let res = _insert_to_db(&trans, record.key, record.definition.as_str());
+        let res = insert_to_db(&mut ins_cmd, record.key, record.definition.as_str(), cli.remove_img_a);
         if let Err(e) = res {
             warn!(format!("Error inserting record {}: {}. Err: {}. Skipped", i, record.key, e));
-            // break;
         }
-        if i % 1000 == 0{
+        if i % 3000 == 0{
             info!(format!("Inserted {} records... Speed: {} records/s", i, i as f32 / start_time.elapsed().as_secs_f32()));
         }
     }
