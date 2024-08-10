@@ -1,7 +1,6 @@
 use std::{
     collections::HashMap,
-    io::{self, Read},
-    str,
+    io::Read,
 };
 
 use adler32::adler32;
@@ -42,9 +41,6 @@ pub struct Header {
 
 #[derive(Debug)]
 struct KeyBlockHeader {
-    block_num: usize,
-    entry_num: usize,
-    decompressed_size: usize,
     block_info_size: usize,
     key_block_size: usize,
 }
@@ -126,11 +122,8 @@ fn parse_key_block_header_v2(input: &[u8]) -> IResult<&[u8], KeyBlockHeader> {
 
     let (_, res) = map(
         tuple((be_u64, be_u64, be_u64, be_u64, be_u64)),
-        |(block_num, entry_num, decompressed_size, block_info_size, key_block_size)| {
+        |(_block_num, _entry_num, _decompressed_size, block_info_size, key_block_size)| {
             KeyBlockHeader {
-                block_num: block_num as usize,
-                entry_num: entry_num as usize,
-                decompressed_size: decompressed_size as usize,
                 block_info_size: block_info_size as usize,
                 key_block_size: key_block_size as usize,
             }
@@ -144,10 +137,7 @@ fn parse_key_block_header_v1(input: &[u8]) -> IResult<&[u8], KeyBlockHeader> {
 
     let (_, res) = map(
         tuple((be_u32, be_u32, be_u32, be_u32)),
-        |(block_num, entry_num, block_info_size, key_block_size)| KeyBlockHeader {
-            block_num: block_num as usize,
-            entry_num: entry_num as usize,
-            decompressed_size: block_info_size as usize,
+        |(_block_num, _entry_num, block_info_size, key_block_size)| KeyBlockHeader {
             block_info_size: block_info_size as usize,
             key_block_size: key_block_size as usize,
         },
@@ -347,12 +337,12 @@ fn parse_block_items_v2<'a>(
     Ok((remain, sep))
 }
 
-fn block_parser_v1<'a>(size: usize) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Vec<u8>> {
+fn _block_parser_v1<'a>(size: usize) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Vec<u8>> {
     map(
         tuple((le_u32, take(4_usize), take(size - 8))),
         |(enc, chksum, encrypted)| {
             let enc_method = (enc >> 4) & 0xf;
-            let enc_size = (enc >> 8) & 0xff;
+            let _enc_size = (enc >> 8) & 0xff;
             let comp_method = enc & 0xf;
 
             let mut md = Ripemd128::new();
@@ -363,8 +353,8 @@ fn block_parser_v1<'a>(size: usize) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8],
                 0 => Vec::from(encrypted),
                 1 => fast_decrypt(encrypted, key.as_slice()),
                 2 => {
-                    let mut decrypt = vec![];
-                    let mut cipher = Salsa20::new(key.as_slice().into(), &[0; 8].into());
+                    let decrypt = vec![];
+                    let _cipher = Salsa20::new(key.as_slice().into(), &[0; 8].into());
 
                     decrypt
                 }
@@ -393,7 +383,7 @@ fn block_parser<'a>(
         tuple((le_u32, take(4_usize), take(comp_size - 8))),
         move |(enc, chksum, encrypted)| {
             let enc_method = (enc >> 4) & 0xf;
-            let enc_size = (enc >> 8) & 0xff;
+            let _enc_size = (enc >> 8) & 0xff;
             let comp_method = enc & 0xf;
 
             let mut md = Ripemd128::new();
@@ -404,8 +394,8 @@ fn block_parser<'a>(
                 0 => Vec::from(encrypted),
                 1 => fast_decrypt(encrypted, key.as_slice()),
                 2 => {
-                    let mut decrypt = vec![];
-                    let mut cipher = Salsa20::new(key.as_slice().into(), &[0; 8].into());
+                    let decrypt = vec![];
+                    let _cipher = Salsa20::new(key.as_slice().into(), &[0; 8].into());
 
                     decrypt
                 }
@@ -443,9 +433,9 @@ fn parse_record_blocks<'a>(input: &'a [u8], header: &'a Header) -> IResult<&'a [
 
 fn parse_record_blocks_v1(input: &[u8]) -> IResult<&[u8], Vec<BlockEntryInfo>> {
     let (input, records) = be_u32(input)?;
-    let (input, entries) = be_u32(input)?;
+    let (input, _entries) = be_u32(input)?;
     let (input, record_info_size) = be_u32(input)?;
-    let (input, record_buf_size) = be_u32(input)?;
+    let (input, _record_buf_size) = be_u32(input)?;
 
     assert_eq!(records * 8, record_info_size);
 
@@ -462,9 +452,9 @@ fn parse_record_blocks_v1(input: &[u8]) -> IResult<&[u8], Vec<BlockEntryInfo>> {
 }
 fn parse_record_blocks_v2(input: &[u8]) -> IResult<&[u8], Vec<BlockEntryInfo>> {
     let (input, records) = be_u64(input)?;
-    let (input, entries) = be_u64(input)?;
+    let (input, _entries) = be_u64(input)?;
     let (input, record_info_size) = be_u64(input)?;
-    let (input, record_buf_size) = be_u64(input)?;
+    let (input, _record_buf_size) = be_u64(input)?;
 
     assert_eq!(records * 16, record_info_size);
 
@@ -500,7 +490,6 @@ pub(crate) fn record_block_parser<'a>(
         tuple((le_u32, take(4_usize), take(size - 8))),
         move |(enc, chksum, encrypted)| {
             let enc_method = (enc >> 4) & 0xf;
-            let enc_size = (enc >> 8) & 0xff;
             let comp_method = enc & 0xf;
 
             let mut md = Ripemd128::new();
@@ -511,9 +500,7 @@ pub(crate) fn record_block_parser<'a>(
                 0 => Vec::from(encrypted),
                 1 => fast_decrypt(encrypted, key.as_slice()),
                 2 => {
-                    let mut decrypt = vec![];
-                    let mut cipher = Salsa20::new(key.as_slice().into(), &[0; 8].into());
-
+                    let decrypt = vec![];
                     decrypt
                 }
                 _ => panic!("unknown enc method: {}", enc_method),

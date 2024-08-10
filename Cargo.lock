@@ -539,6 +539,7 @@ dependencies = [
  "clap",
  "lazy_static",
  "mdict-parser",
+ "num_cpus",
  "once_cell",
  "regex",
  "rusqlite",

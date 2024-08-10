@@ -11,3 +11,4 @@ regex = "1.10.5"
 rusqlite = "0.31.0"
 tklog = "0.0.8"
 mdict-parser = { path = "./mdict-parser" }
+num_cpus = "1.16.0"

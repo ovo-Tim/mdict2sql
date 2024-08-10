@@ -1,5 +1,5 @@
 # mdict2sql
-Convert Mdict to SQLite in a high speed.
+Convert Mdict to SQLite in a high speed. Support multithreading now.
 
 ## Usage
 ```
@@ -10,7 +10,8 @@ Arguments:
   [OUTPUT_PATH]  The path to the output file(.db), defaults to <mdx_path>.db
 
 Options:
-  -r, --remove-img-a
-  -h, --help          Print help
-  -V, --version       Print version
+  -t, --threads <THREADS>  The number of threads to use, defaults to your cpu cores [default: 16]
+  -r, --remove-img-a       Remove <img> and <a> tags from the definition
+  -h, --help               Print help
+  -V, --version            Print version
 ```
